@@ -35,60 +35,114 @@ function RequireAdmin({ children }) {
   return isAdmin ? children : <Navigate to="/" replace />;
 }
 
+const NAV_ITEMS = [
+  { to: '/',       label: '水槽',     icon: '🪣', end: true },
+  { to: '/shop',   label: 'ショップ', icon: '🐚' },
+  { to: '/orders', label: '注文',     icon: '📦' },
+];
+
 export default function App() {
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
+
+  const navItems = [
+    ...NAV_ITEMS,
+    ...(isAdmin ? [{ to: '/admin', label: '管理', icon: '⚙️' }] : []),
+  ];
 
   return (
     <div className="min-h-screen bg-slate-50">
       {isAuthenticated && (
-        <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
-          <div className="max-w-6xl mx-auto px-4 flex items-center justify-between h-14">
-            <Link to="/" className="flex items-center gap-2">
-              <img src="/coral-reef-keeper/icon-192.png" alt="" className="w-8 h-8 rounded-lg" />
-              <span className="font-bold text-base tracking-tight">
-                <span className="text-cyan-600">coral</span>
-                <span className="text-slate-800">-reef-</span>
-                <span className="text-cyan-600">keeper</span>
-              </span>
-            </Link>
-            <nav className="flex gap-1">
-              {[
-                { to: '/',       label: '水槽管理', end: true },
-                { to: '/shop',   label: 'ショップ' },
-                { to: '/orders', label: '注文履歴' },
-                ...(isAdmin ? [{ to: '/admin', label: '管理' }] : []),
-              ].map(({ to, label, end }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  end={end}
-                  className={({ isActive }) =>
-                    `px-3 py-2 rounded-lg text-sm font-medium transition ${
-                      isActive ? 'bg-cyan-50 text-cyan-700' : 'text-slate-600 hover:bg-slate-100'
-                    }`
-                  }
+        <>
+          {/* PC ヘッダー（md以上） */}
+          <header className="bg-white border-b border-slate-200 sticky top-0 z-40 hidden md:block">
+            <div className="max-w-6xl mx-auto px-4 flex items-center justify-between h-14">
+              <Link to="/" className="flex items-center gap-2">
+                <img src="/coral-reef-keeper/icon-192.png" alt="" className="w-8 h-8 rounded-lg" />
+                <span className="font-bold text-base tracking-tight">
+                  <span className="text-cyan-600">coral</span>
+                  <span className="text-slate-800">-reef-</span>
+                  <span className="text-cyan-600">keeper</span>
+                </span>
+              </Link>
+              <nav className="flex gap-1">
+                {navItems.map(({ to, label, end }) => (
+                  <NavLink
+                    key={to}
+                    to={to}
+                    end={end}
+                    className={({ isActive }) =>
+                      `px-3 py-2 rounded-lg text-sm font-medium transition ${
+                        isActive ? 'bg-cyan-50 text-cyan-700' : 'text-slate-600 hover:bg-slate-100'
+                      }`
+                    }
+                  >
+                    {label}
+                  </NavLink>
+                ))}
+              </nav>
+              <div className="flex items-center gap-2">
+                {user?.photoURL && (
+                  <img src={user.photoURL} alt="" className="w-7 h-7 rounded-full" />
+                )}
+                <span className="text-xs text-slate-500 max-w-[120px] truncate">{user?.displayName}</span>
+                <button
+                  onClick={logout}
+                  className="text-xs text-slate-400 hover:text-slate-600 px-2 py-1 rounded-lg hover:bg-slate-100 transition"
                 >
-                  {label}
-                </NavLink>
-              ))}
-            </nav>
-            <div className="flex items-center gap-2 ml-2">
-              {user?.photoURL && (
-                <img src={user.photoURL} alt="" className="w-7 h-7 rounded-full" />
-              )}
-              <span className="text-xs text-slate-500 hidden sm:block max-w-[120px] truncate">{user?.displayName}</span>
-              <button
-                onClick={logout}
-                className="text-xs text-slate-400 hover:text-slate-600 px-2 py-1 rounded-lg hover:bg-slate-100 transition"
-              >
-                ログアウト
-              </button>
+                  ログアウト
+                </button>
+              </div>
             </div>
-          </div>
-        </header>
+          </header>
+
+          {/* スマホ トップバー */}
+          <header className="bg-white border-b border-slate-200 sticky top-0 z-40 md:hidden">
+            <div className="px-4 flex items-center justify-between h-12">
+              <Link to="/" className="flex items-center gap-1.5">
+                <img src="/coral-reef-keeper/icon-192.png" alt="" className="w-7 h-7 rounded-lg" />
+                <span className="font-bold text-sm tracking-tight">
+                  <span className="text-cyan-600">coral</span>
+                  <span className="text-slate-800">-reef-</span>
+                  <span className="text-cyan-600">keeper</span>
+                </span>
+              </Link>
+              <div className="flex items-center gap-2">
+                {user?.photoURL && (
+                  <img src={user.photoURL} alt="" className="w-7 h-7 rounded-full" />
+                )}
+                <button
+                  onClick={logout}
+                  className="text-xs text-slate-400 hover:text-slate-600 px-2 py-1 rounded-lg hover:bg-slate-100 transition"
+                >
+                  ログアウト
+                </button>
+              </div>
+            </div>
+          </header>
+
+          {/* スマホ ボトムナビ */}
+          <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40 flex">
+            {navItems.map(({ to, label, icon, end }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={end}
+                className={({ isActive }) =>
+                  `flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-xs font-medium transition ${
+                    isActive ? 'text-cyan-600' : 'text-slate-400'
+                  }`
+                }
+              >
+                <span className="text-xl leading-none">{icon}</span>
+                {label}
+              </NavLink>
+            ))}
+          </nav>
+        </>
       )}
 
-      <main>
+      {/* ボトムナビ分の余白 */}
+      <main className={isAuthenticated ? 'md:pb-0 pb-16' : ''}>
         <Routes>
           <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
           <Route path="/terms" element={<Terms />} />

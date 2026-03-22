@@ -5,16 +5,16 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { base44 } from '../../base44Client.js';
 
 const WATER_PARAMS = [
-  { key: 'temperature', label: '水温', unit: '°C' },
-  { key: 'salinity', label: '塩分濃度', unit: 'ppt' },
-  { key: 'ph', label: 'pH', unit: '' },
-  { key: 'calcium', label: 'カルシウム', unit: 'ppm' },
-  { key: 'alkalinity', label: 'KH', unit: '' },
-  { key: 'magnesium', label: 'マグネシウム', unit: 'ppm' },
-  { key: 'nitrate', label: '硝酸塩', unit: 'ppm' },
-  { key: 'phosphate', label: 'リン酸', unit: 'ppm' },
-  { key: 'ammonia', label: 'アンモニア', unit: 'ppm' },
-  { key: 'nitrite', label: '亜硝酸', unit: 'ppm' },
+  { key: 'temperature', label: '水温',  unit: '°C' },
+  { key: 'salinity',    label: 'S.G.',  unit: 'ppt' },
+  { key: 'ph',          label: 'pH',    unit: '' },
+  { key: 'calcium',     label: 'Ca',    unit: 'ppm' },
+  { key: 'alkalinity',  label: 'KH',    unit: '' },
+  { key: 'magnesium',   label: 'Mg',    unit: 'ppm' },
+  { key: 'nitrate',     label: 'NO₃',   unit: 'ppm' },
+  { key: 'phosphate',   label: 'PO₄',   unit: 'ppm' },
+  { key: 'ammonia',     label: 'NH₃',   unit: 'ppm' },
+  { key: 'nitrite',     label: 'NO₂',   unit: 'ppm' },
 ];
 
 function WaterLogModal({ aquariumId, onClose }) {
