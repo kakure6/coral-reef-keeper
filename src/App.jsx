@@ -6,11 +6,12 @@ import AquariumDetail from './pages/AquariumDetail.jsx';
 import Login         from './pages/Login.jsx';
 import Admin         from './pages/Admin.jsx';
 import Terms         from './pages/Terms.jsx';
+import { AquariumNavIcon, ShopNavIcon, OrderNavIcon, AdminNavIcon, AnimatedFishIcon } from './components/AnimatedIcons.jsx';
 
 function ComingSoon({ title }) {
   return (
     <div className="min-h-[70vh] flex flex-col items-center justify-center text-center px-4">
-      <div className="text-6xl mb-6">🐠</div>
+      <AnimatedFishIcon />
       <h1 className="text-2xl font-bold text-slate-700 mb-2">{title}</h1>
       <p className="text-slate-400 text-sm">現在準備中です。しばらくお待ちください。</p>
     </div>
@@ -35,18 +36,14 @@ function RequireAdmin({ children }) {
   return isAdmin ? children : <Navigate to="/" replace />;
 }
 
-const NAV_ITEMS = [
-  { to: '/',       label: '水槽',     icon: '🪣', end: true },
-  { to: '/shop',   label: 'ショップ', icon: '🐚' },
-  { to: '/orders', label: '注文',     icon: '📦' },
-];
-
 export default function App() {
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
 
   const navItems = [
-    ...NAV_ITEMS,
-    ...(isAdmin ? [{ to: '/admin', label: '管理', icon: '⚙️' }] : []),
+    { to: '/',       label: '水槽',     IconComp: AquariumNavIcon, end: true },
+    { to: '/shop',   label: 'ショップ', IconComp: ShopNavIcon },
+    { to: '/orders', label: '注文',     IconComp: OrderNavIcon },
+    ...(isAdmin ? [{ to: '/admin', label: '管理', IconComp: AdminNavIcon }] : []),
   ];
 
   return (
@@ -79,6 +76,7 @@ export default function App() {
                     {label}
                   </NavLink>
                 ))}
+
               </nav>
               <div className="flex items-center gap-2">
                 {user?.photoURL && (
@@ -122,7 +120,7 @@ export default function App() {
 
           {/* スマホ ボトムナビ */}
           <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40 flex">
-            {navItems.map(({ to, label, icon, end }) => (
+            {navItems.map(({ to, label, IconComp, end }) => (
               <NavLink
                 key={to}
                 to={to}
@@ -133,8 +131,12 @@ export default function App() {
                   }`
                 }
               >
-                <span className="text-xl leading-none">{icon}</span>
-                {label}
+                {({ isActive }) => (
+                  <>
+                    <IconComp active={isActive} />
+                    {label}
+                  </>
+                )}
               </NavLink>
             ))}
           </nav>

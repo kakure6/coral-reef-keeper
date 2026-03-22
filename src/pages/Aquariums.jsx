@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { base44 } from '../../base44Client.js';
+import { EmptyAquariumIcon, EditIcon, TrashIcon } from '../components/AnimatedIcons.jsx';
 
 const TANK_TYPES = ['リーフタンク', 'フィッシュオンリー', '混合'];
 
@@ -98,8 +99,8 @@ export default function Aquariums() {
       {isLoading ? (
         <p className="text-slate-400">読み込み中…</p>
       ) : aquariums.length === 0 ? (
-        <div className="text-center py-16 text-slate-400">
-          <p className="text-4xl mb-3">🪣</p>
+        <div className="text-center py-12 text-slate-400">
+          <EmptyAquariumIcon />
           <p>水槽がまだ登録されていません。</p>
           <button onClick={() => setShowAdd(true)} className="mt-4 text-cyan-600 text-sm hover:underline">水槽を追加する</button>
         </div>
@@ -114,16 +115,16 @@ export default function Aquariums() {
               <div className="flex gap-3 mt-4 pt-3 border-t border-slate-100">
                 <button
                   onClick={() => setEditTarget(a)}
-                  className="text-xs text-slate-500 hover:text-cyan-600 transition"
+                  className="flex items-center gap-1 text-xs text-slate-500 hover:text-cyan-600 transition"
                 >
-                  ✏️ 編集
+                  <EditIcon /> 編集
                 </button>
                 <button
                   onClick={() => { if (confirm(`「${a.name}」を削除しますか？\n水質記録・機材データも失われます。`)) remove.mutate(a.id); }}
                   disabled={remove.isPending}
-                  className="text-xs text-red-400 hover:text-red-600 transition"
+                  className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 transition"
                 >
-                  🗑️ 削除
+                  <TrashIcon /> 削除
                 </button>
               </div>
             </div>

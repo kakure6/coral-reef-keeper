@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../AuthContext.jsx';
 import { base44 } from '../../base44Client.js';
+import { AnimatedCoralIcon } from '../components/AnimatedIcons.jsx';
 
 const DIFFICULTY_COLOR = {
   '初心者': 'bg-green-100 text-green-700',
@@ -71,7 +72,7 @@ export default function CoralDetail() {
         <div className="aspect-square bg-slate-100 rounded-2xl overflow-hidden">
           {coral.image_url
             ? <img src={coral.image_url} alt={coral.name} className="w-full h-full object-cover" />
-            : <div className="w-full h-full flex items-center justify-center text-8xl">🪸</div>}
+            : <div className="w-full h-full flex items-center justify-center"><AnimatedCoralIcon /></div>}
         </div>
 
         <div className="flex flex-col gap-4">

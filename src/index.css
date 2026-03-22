@@ -7,3 +7,36 @@
     font-family: 'Space Grotesk', sans-serif;
   }
 }
+
+/* ── CSS アニメーション keyframes ──────────────────────────── */
+
+@keyframes fish-swim {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  25%       { transform: translateY(-6px) rotate(-3deg); }
+  75%       { transform: translateY(6px) rotate(3deg); }
+}
+
+@keyframes coral-sway {
+  0%, 100% { transform: rotate(0deg); }
+  50%       { transform: rotate(6deg); }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes bubble-rise {
+  0%   { transform: translateY(0);    opacity: 0.8; }
+  100% { transform: translateY(-32px); opacity: 0; }
+}
+
+@keyframes wave-shift {
+  0%, 100% { transform: translateX(0); }
+  50%       { transform: translateX(-4px); }
+}
+
+@keyframes pulse-ring {
+  0%   { transform: scale(1);   opacity: 0.6; }
+  100% { transform: scale(1.6); opacity: 0; }
+}

@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { base44 } from '../../base44Client.js';
+import { EmptyCartIcon } from '../components/AnimatedIcons.jsx';
 
 const STATUS_COLOR = {
   '受付中': 'bg-blue-100 text-blue-700',
@@ -26,8 +27,8 @@ export default function Orders() {
       {isLoading ? (
         <p className="text-slate-400">読み込み中…</p>
       ) : purchaseOrders.length === 0 ? (
-        <div className="text-center py-16 text-slate-400">
-          <p className="text-4xl mb-3">🛒</p>
+        <div className="text-center py-12 text-slate-400">
+          <EmptyCartIcon />
           <p>注文履歴がありません。</p>
           <Link to="/" className="mt-4 text-cyan-600 text-sm hover:underline block">ショップを見る</Link>
         </div>

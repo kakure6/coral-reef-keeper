@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { base44 } from '../../base44Client.js';
+import { AnimatedCoralIcon } from '../components/AnimatedIcons.jsx';
 
 const CATEGORIES = ['すべて', 'SPS', 'LPS', 'ソフトコーラル', 'イソギンチャク'];
 const DIFFICULTY_COLOR = {
@@ -18,7 +19,7 @@ function CoralCard({ coral }) {
         {coral.image_url ? (
           <img src={coral.image_url} alt={coral.name} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-5xl">🪸</div>
+          <div className="w-full h-full flex items-center justify-center"><AnimatedCoralIcon /></div>
         )}
         {soldOut && (
           <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
@@ -99,8 +100,8 @@ export default function Shop() {
         {isLoading ? (
           <p className="text-slate-400 text-center py-16">読み込み中…</p>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-16 text-slate-400">
-            <p className="text-4xl mb-3">🪸</p>
+          <div className="text-center py-12 text-slate-400">
+            <AnimatedCoralIcon />
             <p>該当する商品がありません。</p>
           </div>
         ) : (
