@@ -9,15 +9,18 @@ const WATER_PARAMS = [
   { key: 'salinity', label: '塩分濃度', unit: 'ppt' },
   { key: 'ph', label: 'pH', unit: '' },
   { key: 'calcium', label: 'カルシウム', unit: 'ppm' },
-  { key: 'kh', label: 'KH', unit: '' },
+  { key: 'alkalinity', label: 'KH', unit: '' },
   { key: 'magnesium', label: 'マグネシウム', unit: 'ppm' },
   { key: 'nitrate', label: '硝酸塩', unit: 'ppm' },
   { key: 'phosphate', label: 'リン酸', unit: 'ppm' },
+  { key: 'ammonia', label: 'アンモニア', unit: 'ppm' },
+  { key: 'nitrite', label: '亜硝酸', unit: 'ppm' },
 ];
 
 function WaterLogModal({ aquariumId, onClose }) {
   const qc = useQueryClient();
-  const [form, setForm] = useState({ temperature: '', salinity: '', ph: '', calcium: '', kh: '', magnesium: '', nitrate: '', phosphate: '', no2: '', no3: '' });
+  const [form, setForm] = useState({ temperature: '', salinity: '', ph: '', calcium: '', alkalinity: '', magnesium: '', nitrate: '', phosphate: '', ammonia: '', nitrite: '' });
+  const [error, setError] = useState('');
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const add = useMutation({
@@ -25,7 +28,11 @@ function WaterLogModal({ aquariumId, onClose }) {
       aquarium_id: aquariumId,
       ...Object.fromEntries(Object.entries(form).filter(([, v]) => v !== '').map(([k, v]) => [k, Number(v)])),
     }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['waterLogs', aquariumId] }); onClose(); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['waterLogs', aquariumId] });
+      onClose();
+    },
+    onError: (e) => setError(e?.message || '保存に失敗しました'),
   });
 
   return (
@@ -33,7 +40,7 @@ function WaterLogModal({ aquariumId, onClose }) {
       <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl" onClick={e => e.stopPropagation()}>
         <h2 className="font-bold text-lg text-slate-700 mb-4">水質記録</h2>
         <div className="grid grid-cols-2 gap-3">
-          {[...WATER_PARAMS, { key: 'no2', label: 'NO2', unit: 'ppm' }, { key: 'no3', label: 'NO3', unit: 'ppm' }].map(({ key, label, unit }) => (
+          {WATER_PARAMS.map(({ key, label, unit }) => (
             <div key={key}>
               <label className="text-xs text-slate-500 mb-1 block">{label}{unit && ` (${unit})`}</label>
               <input type="number" className="border rounded-lg px-3 py-2 text-sm w-full" placeholder="-"
@@ -41,18 +48,27 @@ function WaterLogModal({ aquariumId, onClose }) {
             </div>
           ))}
         </div>
+        {error && <p className="text-red-500 text-xs mt-3">{error}</p>}
         <div className="flex gap-3 mt-5">
-          <button onClick={onClose} className="flex-1 border rounded-lg py-2 text-sm text-slate-500">キャンセル</button>
+          <button onClick={onClose} disabled={add.isPending} className="flex-1 border rounded-lg py-2 text-sm text-slate-500">キャンセル</button>
           <button onClick={() => add.mutate()} disabled={add.isPending}
-            className="flex-1 bg-cyan-600 text-white rounded-lg py-2 text-sm font-medium disabled:opacity-40">記録する</button>
+            className="flex-1 bg-cyan-600 text-white rounded-lg py-2 text-sm font-medium disabled:opacity-60">
+            {add.isPending ? '保存中...' : '記録する'}
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-function WaterGraph({ logs }) {
+function WaterGraph({ logs, aquariumId }) {
+  const qc = useQueryClient();
   const [param, setParam] = useState('temperature');
+
+  const remove = useMutation({
+    mutationFn: (id) => base44.entities.WaterLog.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['waterLogs', aquariumId] }),
+  });
   const data = [...logs].reverse().map(l => ({
     date: l.created_date?.slice(5, 10),
     value: l[param],
@@ -88,12 +104,19 @@ function WaterGraph({ logs }) {
         <div className="mt-4">
           <h4 className="text-sm font-medium text-slate-600 mb-2">記録履歴</h4>
           <table className="w-full text-xs text-slate-600">
-            <thead><tr className="border-b">{['日付', ...WATER_PARAMS.map(p => p.label)].map(h => <th key={h} className="text-left py-1 pr-2 font-medium">{h}</th>)}</tr></thead>
+            <thead><tr className="border-b">{['日付', ...WATER_PARAMS.map(p => p.label), ''].map(h => <th key={h} className="text-left py-1 pr-2 font-medium">{h}</th>)}</tr></thead>
             <tbody>
               {logs.slice(0, 10).map(l => (
-                <tr key={l.id} className="border-b border-slate-50">
+                <tr key={l.id} className="border-b border-slate-50 hover:bg-slate-50">
                   <td className="py-1 pr-2">{l.created_date?.slice(5, 10)}</td>
                   {WATER_PARAMS.map(p => <td key={p.key} className="py-1 pr-2">{l[p.key] ?? '-'}</td>)}
+                  <td className="py-1">
+                    <button
+                      onClick={() => { if (confirm('この記録を削除しますか？')) remove.mutate(l.id); }}
+                      className="text-red-400 hover:text-red-600 transition"
+                      disabled={remove.isPending}
+                    >削除</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -104,19 +127,58 @@ function WaterGraph({ logs }) {
   );
 }
 
+const EQUIPMENT_CATEGORIES = ['添加剤', '薬品', 'フード', '試薬', '水槽機材', 'その他'];
+const EQUIPMENT_UNITS = ['ml', 'g', '錠'];
+
+function calcDaysLeft(eq) {
+  if (!eq.total_volume || !eq.usage_per_dose || !eq.logs_total) return null;
+  const remaining = eq.total_volume - (eq.logs_total || 0);
+  if (remaining <= 0) return 0;
+  if (!eq.usage_per_dose) return null;
+  return Math.floor(remaining / eq.usage_per_dose);
+}
+
 function EquipmentTab({ aquariumId }) {
   const qc = useQueryClient();
-  const [name, setName] = useState('');
-  const [type, setType] = useState('');
+  const today = new Date().toISOString().slice(0, 10);
+  const [form, setForm] = useState({ name: '', category: '添加剤', total_volume: '', unit: 'ml', usage_per_dose: '', purchase_date: today });
+  const setF = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const { data: equipment = [] } = useQuery({
     queryKey: ['equipment', aquariumId],
     queryFn: () => base44.entities.Equipment.filter({ aquarium_id: aquariumId }),
   });
+  const { data: equipLogs = [] } = useQuery({
+    queryKey: ['equipmentLogs', aquariumId],
+    queryFn: () => base44.entities.EquipmentLog.filter({ aquarium_id: aquariumId }),
+  });
+
+  const equipWithUsage = equipment.map(eq => {
+    const used = equipLogs.filter(l => l.equipment_id === eq.id).reduce((s, l) => s + (l.amount || 0), 0);
+    return { ...eq, logs_total: used };
+  });
 
   const add = useMutation({
-    mutationFn: () => base44.entities.Equipment.create({ aquarium_id: aquariumId, name, type }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['equipment', aquariumId] }); setName(''); setType(''); },
+    mutationFn: () => base44.entities.Equipment.create({
+      aquarium_id: aquariumId,
+      name: form.name,
+      category: form.category,
+      total_volume: form.total_volume ? Number(form.total_volume) : undefined,
+      unit: form.unit,
+      usage_per_dose: form.usage_per_dose ? Number(form.usage_per_dose) : undefined,
+      purchase_date: form.purchase_date || undefined,
+    }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['equipment', aquariumId] }); setForm({ name: '', category: '添加剤', total_volume: '', unit: 'ml', usage_per_dose: '', purchase_date: today }); },
+  });
+
+  const logUse = useMutation({
+    mutationFn: ({ eq }) => base44.entities.EquipmentLog.create({
+      aquarium_id: aquariumId,
+      equipment_id: eq.id,
+      amount: eq.usage_per_dose,
+      unit: eq.unit,
+    }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['equipmentLogs', aquariumId] }),
   });
 
   const remove = useMutation({
@@ -126,19 +188,53 @@ function EquipmentTab({ aquariumId }) {
 
   return (
     <div>
-      <div className="flex gap-3 mb-4">
-        <input className="border rounded-lg px-3 py-2 text-sm flex-1" placeholder="機材名" value={name} onChange={e => setName(e.target.value)} />
-        <input className="border rounded-lg px-3 py-2 text-sm flex-1" placeholder="種類" value={type} onChange={e => setType(e.target.value)} />
-        <button onClick={() => add.mutate()} disabled={!name} className="bg-cyan-600 text-white px-4 py-2 rounded-lg text-sm disabled:opacity-40">追加</button>
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <input className="border rounded-lg px-3 py-2 text-sm col-span-2" placeholder="機材名 *" value={form.name} onChange={e => setF('name', e.target.value)} />
+        <select className="border rounded-lg px-3 py-2 text-sm" value={form.category} onChange={e => setF('category', e.target.value)}>
+          {EQUIPMENT_CATEGORIES.map(c => <option key={c}>{c}</option>)}
+        </select>
+        <select className="border rounded-lg px-3 py-2 text-sm" value={form.unit} onChange={e => setF('unit', e.target.value)}>
+          {EQUIPMENT_UNITS.map(u => <option key={u}>{u}</option>)}
+        </select>
+        <input type="number" className="border rounded-lg px-3 py-2 text-sm" placeholder="総量" value={form.total_volume} onChange={e => setF('total_volume', e.target.value)} />
+        <input type="number" className="border rounded-lg px-3 py-2 text-sm" placeholder="1回あたりの使用量" value={form.usage_per_dose} onChange={e => setF('usage_per_dose', e.target.value)} />
+        <input type="date" className="border rounded-lg px-3 py-2 text-sm col-span-2" value={form.purchase_date} onChange={e => setF('purchase_date', e.target.value)} />
       </div>
-      {equipment.length === 0 ? <p className="text-slate-400 text-sm">機材がありません</p> : (
-        <div className="grid gap-2">
-          {equipment.map(e => (
-            <div key={e.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-              <div><p className="font-medium text-slate-700 text-sm">{e.name}</p>{e.type && <p className="text-xs text-slate-400">{e.type}</p>}</div>
-              <button onClick={() => remove.mutate(e.id)} className="text-xs text-red-400 hover:text-red-600">削除</button>
-            </div>
-          ))}
+      <button onClick={() => add.mutate()} disabled={!form.name || add.isPending} className="bg-cyan-600 text-white px-4 py-2 rounded-lg text-sm disabled:opacity-40 mb-4">追加</button>
+      {equipWithUsage.length === 0 ? <p className="text-slate-400 text-sm">機材がありません</p> : (
+        <div className="grid gap-3">
+          {equipWithUsage.map(e => {
+            const used = e.logs_total || 0;
+            const pct = e.total_volume ? Math.min(100, Math.round((used / e.total_volume) * 100)) : null;
+            const daysLeft = calcDaysLeft(e);
+            return (
+              <div key={e.id} className="p-3 bg-slate-50 rounded-lg">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <p className="font-medium text-slate-700 text-sm">{e.name}</p>
+                    <p className="text-xs text-slate-400">{e.category} · {e.unit}</p>
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    {e.usage_per_dose && (
+                      <button onClick={() => logUse.mutate({ eq: e })} className="bg-cyan-100 text-cyan-700 text-xs px-2 py-1 rounded-md hover:bg-cyan-200">使用</button>
+                    )}
+                    <button onClick={() => remove.mutate(e.id)} className="text-xs text-red-400 hover:text-red-600">削除</button>
+                  </div>
+                </div>
+                {pct !== null && (
+                  <div>
+                    <div className="flex justify-between text-xs text-slate-500 mb-1">
+                      <span>使用: {used}{e.unit} / {e.total_volume}{e.unit}</span>
+                      {daysLeft !== null && <span className={daysLeft <= 14 ? 'text-orange-500 font-medium' : ''}>{daysLeft <= 0 ? '残量なし' : `あと約${daysLeft}日`}</span>}
+                    </div>
+                    <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all ${pct >= 80 ? 'bg-orange-400' : 'bg-cyan-500'}`} style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -249,13 +345,34 @@ export default function AquariumDetail() {
 
   const latest = logs[0];
 
+  const [aiError, setAiError] = useState('');
+
   const handleAI = async () => {
     if (!latest) return;
     setAiLoading(true);
-    const prompt = `水槽の水質データを分析してください。水温:${latest.temperature}℃、塩分濃度:${latest.salinity}ppt、pH:${latest.ph}、カルシウム:${latest.calcium}ppm、KH:${latest.kh}、マグネシウム:${latest.magnesium}ppm、硝酸塩:${latest.nitrate}ppm、リン酸:${latest.phosphate}ppm。問題点と改善アドバイスを日本語で簡潔に教えてください。`;
-    const result = await base44.integrations.Core.InvokeLLM({ prompt });
-    setAiResult(result);
-    setAiLoading(false);
+    setAiError('');
+    setAiResult('');
+    try {
+      const params = [
+        latest.temperature != null && `水温:${latest.temperature}℃`,
+        latest.salinity    != null && `塩分濃度:${latest.salinity}ppt`,
+        latest.ph          != null && `pH:${latest.ph}`,
+        latest.calcium     != null && `カルシウム:${latest.calcium}ppm`,
+        latest.alkalinity  != null && `KH:${latest.alkalinity}`,
+        latest.magnesium   != null && `マグネシウム:${latest.magnesium}ppm`,
+        latest.nitrate     != null && `硝酸塩:${latest.nitrate}ppm`,
+        latest.phosphate   != null && `リン酸:${latest.phosphate}ppm`,
+        latest.ammonia     != null && `アンモニア:${latest.ammonia}ppm`,
+        latest.nitrite     != null && `亜硝酸:${latest.nitrite}ppm`,
+      ].filter(Boolean).join('、');
+      const prompt = `海水魚・サンゴ水槽の水質データを分析してください。${params}。問題点と改善アドバイスを日本語で簡潔に教えてください。`;
+      const result = await base44.integrations.Core.InvokeLLM({ prompt });
+      setAiResult(result || '結果が取得できませんでした。');
+    } catch (e) {
+      setAiError('AI分析に失敗しました: ' + (e?.message || 'エラー'));
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   return (
@@ -287,8 +404,8 @@ export default function AquariumDetail() {
             {[
               { label: '水温', value: latest.temperature, unit: '°C' },
               { label: '塩分濃度', value: latest.salinity, unit: 'ppt' },
-              { label: 'NO2', value: latest.no2, unit: 'ppm' },
-              { label: 'NO3', value: latest.no3, unit: 'ppm' },
+              { label: 'アンモニア', value: latest.ammonia, unit: 'ppm' },
+              { label: '亜硝酸', value: latest.nitrite, unit: 'ppm' },
             ].map(({ label, value, unit }) => (
               <div key={label} className="text-center">
                 <p className="text-xs text-slate-400">{label}</p>
@@ -308,8 +425,9 @@ export default function AquariumDetail() {
             {aiLoading ? '分析中…' : 'AI分析'}
           </button>
         </div>
-        {aiResult && <p className="text-sm text-slate-600 leading-relaxed mt-2">{aiResult}</p>}
-        {!aiResult && !aiLoading && <p className="text-xs text-slate-400">水質記録後にAI分析が利用できます</p>}
+        {aiResult && <p className="text-sm text-slate-600 leading-relaxed mt-2 whitespace-pre-wrap">{aiResult}</p>}
+        {aiError && <p className="text-sm text-red-500 mt-2">{aiError}</p>}
+        {!aiResult && !aiError && !aiLoading && <p className="text-xs text-slate-400">{latest ? 'AI分析ボタンで水質アドバイスを取得できます' : '水質記録後にAI分析が利用できます'}</p>}
       </div>
 
       {/* Tabs */}
@@ -323,7 +441,7 @@ export default function AquariumDetail() {
           ))}
         </div>
         <div className="p-5">
-          {tab === 0 && <WaterGraph logs={logs} />}
+          {tab === 0 && <WaterGraph logs={logs} aquariumId={id} />}
           {tab === 1 && <EquipmentTab aquariumId={id} />}
           {tab === 2 && <GrowthTab aquariumId={id} />}
           {tab === 3 && <MaintenanceTab aquariumId={id} />}

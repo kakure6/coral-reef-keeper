@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 管理者判定
+    function isAdmin() {
+      return request.auth != null
+          && request.auth.token.email == 'kakureandmix@gmail.com';
+    }
+
+    // ログイン済み判定
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // 自分のドキュメントか判定
+    function isOwner() {
+      return request.auth.uid == resource.data.user_id;
+    }
+
+    // 自分のドキュメントとして作成しているか
+    function isCreatingOwn() {
+      return request.auth.uid == request.resource.data.user_id;
+    }
+
+    // ── 商品カタログ（全員読み取り可、管理者のみ書き込み）
+    match /corals/{id} {
+      allow read:  if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // ── 注文（自分の注文のみ読み書き、管理者は全件）
+    match /orders/{id} {
+      allow read:   if isAdmin() || (isSignedIn() && isOwner());
+      allow create: if isSignedIn() && isCreatingOwn();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ── ユーザー所有データ（水槽・水質・機材・成長記録・メンテ）
+    match /aquariums/{id} {
+      allow read, update, delete: if isAdmin() || (isSignedIn() && isOwner());
+      allow create: if isSignedIn() && isCreatingOwn();
+    }
+    match /waterLogs/{id} {
+      allow read, update, delete: if isAdmin() || (isSignedIn() && isOwner());
+      allow create: if isSignedIn() && isCreatingOwn();
+    }
+    match /equipments/{id} {
+      allow read, update, delete: if isAdmin() || (isSignedIn() && isOwner());
+      allow create: if isSignedIn() && isCreatingOwn();
+    }
+    match /equipmentLogs/{id} {
+      allow read, update, delete: if isAdmin() || (isSignedIn() && isOwner());
+      allow create: if isSignedIn() && isCreatingOwn();
+    }
+    match /coralGrowths/{id} {
+      allow read, update, delete: if isAdmin() || (isSignedIn() && isOwner());
+      allow create: if isSignedIn() && isCreatingOwn();
+    }
+    match /maintenanceAlerts/{id} {
+      allow read, update, delete: if isAdmin() || (isSignedIn() && isOwner());
+      allow create: if isSignedIn() && isCreatingOwn();
+    }
+  }
+}

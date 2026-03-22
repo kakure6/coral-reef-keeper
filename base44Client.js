@@ -1,18 +1,19 @@
 /**
- * base44Client.js - Firebase drop-in replacement
- * base44 SDK を Firebase Firestore に完全置き換え
- * 他のファイルは一切変更不要
+ * base44Client.js - Firebase Firestore + Auth
+ * 認証ユーザーごとにデータを分離。管理者は全データにアクセス可能。
  */
 
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
   getFirestore, collection, doc,
   addDoc, updateDoc, deleteDoc,
   getDocs, getDoc, query, where,
 } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-// ── Firebase 初期化 ──────────────────────────────────────────
+export const ADMIN_EMAIL = 'kakureandmix@gmail.com';
+
 const firebaseConfig = {
   apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -22,7 +23,7 @@ const firebaseConfig = {
   appId:             import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-const app       = initializeApp(firebaseConfig);
+const app       = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const firestore = getFirestore(app);
 const storage   = getStorage(app);
 
@@ -38,7 +39,19 @@ const COLLECTION_MAP = {
   WaterLog:         'waterLogs',
 };
 
-// ── ソートユーティリティ（クライアントサイド）───────────────
+// 全員が読める公開コレクション（商品カタログ）
+const PUBLIC_COLLECTIONS = new Set(['corals']);
+
+// 現在ログイン中のユーザー情報を取得
+function currentUser() {
+  return getAuth(app).currentUser;
+}
+
+function isAdmin() {
+  return currentUser()?.email === ADMIN_EMAIL;
+}
+
+// ── ソートユーティリティ ──────────────────────────────────────
 function sortDocs(docs, sortStr) {
   if (!sortStr) return docs;
   const desc  = sortStr.startsWith('-');
@@ -52,60 +65,74 @@ function sortDocs(docs, sortStr) {
 }
 
 // ── エンティティクライアント生成 ────────────────────────────
-function createEntityClient(entityName) {
+function createEntityClient(entityName, { adminMode = false } = {}) {
   const colName = COLLECTION_MAP[entityName];
+  const isPublic = PUBLIC_COLLECTIONS.has(colName);
+
+  // クエリを構築（ユーザーフィルター適用）
+  function buildUserQuery(extraConstraints = []) {
+    const user = currentUser();
+    const constraints = [...extraConstraints];
+
+    // 管理者モード or 公開コレクションはフィルターなし
+    if (!adminMode && !isPublic && !isAdmin() && user) {
+      constraints.push(where('user_id', '==', user.uid));
+    }
+
+    return constraints.length > 0
+      ? query(collection(firestore, colName), ...constraints)
+      : query(collection(firestore, colName));
+  }
 
   return {
-    /** 全件取得 */
     async list(sortField) {
-      const snap = await getDocs(collection(firestore, colName));
+      const q    = buildUserQuery();
+      const snap = await getDocs(q);
       const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       return sortDocs(docs, sortField);
     },
 
-    /** 条件絞り込み取得 */
     async filter(conditions, sortField) {
-      // { id: 'xxx' } の場合はドキュメント直接取得
       if (conditions.id && Object.keys(conditions).length === 1) {
         const docSnap = await getDoc(doc(firestore, colName, conditions.id));
         if (!docSnap.exists()) return [];
         return [{ id: docSnap.id, ...docSnap.data() }];
       }
 
-      // 通常の where クエリ
-      const constraints = Object.entries(conditions)
+      const extra = Object.entries(conditions)
         .filter(([key]) => key !== 'id')
         .map(([key, value]) => where(key, '==', value));
 
-      const q    = constraints.length > 0
-        ? query(collection(firestore, colName), ...constraints)
-        : query(collection(firestore, colName));
+      const q    = buildUserQuery(extra);
       const snap = await getDocs(q);
       const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       return sortDocs(docs, sortField);
     },
 
-    /** 新規作成 */
     async create(data) {
-      const docData = { ...data, created_date: new Date().toISOString() };
-      const docRef  = await addDoc(collection(firestore, colName), docData);
+      const user    = currentUser();
+      const docData = {
+        ...data,
+        user_id:      user?.uid ?? null,
+        user_email:   user?.email ?? null,
+        created_date: new Date().toISOString(),
+      };
+      const docRef = await addDoc(collection(firestore, colName), docData);
       return { id: docRef.id, ...docData };
     },
 
-    /** 更新 */
     async update(id, data) {
       await updateDoc(doc(firestore, colName, id), data);
       return { id, ...data };
     },
 
-    /** 削除 */
     async delete(id) {
       await deleteDoc(doc(firestore, colName, id));
     },
   };
 }
 
-// ── ファイルアップロード（Firebase Storage）────────────────
+// ── ファイルアップロード ──────────────────────────────────────
 async function uploadFile({ file }) {
   const storageRef = ref(storage, `uploads/${Date.now()}_${file.name}`);
   await uploadBytes(storageRef, file);
@@ -116,27 +143,32 @@ async function uploadFile({ file }) {
 // ── AI（Cloudflare Worker プロキシ経由）────────────────────
 async function invokeLLM({ prompt }) {
   const workerUrl = import.meta.env.VITE_WORKER_URL;
-  if (!workerUrl) {
-    console.warn('VITE_WORKER_URL が未設定です。WaterAdvisor は動作しません。');
-    return 'AI機能を使用するには VITE_WORKER_URL を設定してください。';
-  }
-  const res = await fetch(`${workerUrl}/ai`, {
+  if (!workerUrl) return 'AI機能を使用するには VITE_WORKER_URL を設定してください。';
+  const res  = await fetch(`${workerUrl}/ai`, {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ prompt }),
+    headers: {
+      'Content-Type':    'application/json',
+      'X-Worker-Secret': import.meta.env.VITE_WORKER_SECRET ?? '',
+    },
+    body: JSON.stringify({ prompt }),
   });
   const data = await res.json();
   return data.content || '';
 }
 
-// ── 公開 API（base44 と同一形状）────────────────────────────
+// ── 公開 API ────────────────────────────────────────────────
 export const base44 = {
+  // 通常エンティティ（ユーザーフィルター付き）
   entities: Object.fromEntries(
     Object.keys(COLLECTION_MAP).map(name => [name, createEntityClient(name)])
   ),
+  // 管理者用エンティティ（フィルターなし・全データ）
+  adminEntities: Object.fromEntries(
+    Object.keys(COLLECTION_MAP).map(name => [name, createEntityClient(name, { adminMode: true })])
+  ),
   auth: {
-    me:              async () => ({ email: 'local@user', role: 'admin' }),
-    logout:          () => {},
+    me:              async () => currentUser(),
+    logout:          async () => { await getAuth(app).signOut(); },
     redirectToLogin: () => {},
   },
   integrations: {

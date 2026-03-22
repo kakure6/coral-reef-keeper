@@ -1,49 +1,103 @@
 import React from 'react';
-import { Routes, Route, NavLink, Link } from 'react-router-dom';
-import Shop from './pages/Shop.jsx';
-import CoralDetail from './pages/CoralDetail.jsx';
-import Aquariums from './pages/Aquariums.jsx';
+import { Routes, Route, NavLink, Link, Navigate } from 'react-router-dom';
+import { useAuth } from '../AuthContext.jsx';
+import Aquariums     from './pages/Aquariums.jsx';
 import AquariumDetail from './pages/AquariumDetail.jsx';
-import Orders from './pages/Orders.jsx';
+import Login         from './pages/Login.jsx';
+import Admin         from './pages/Admin.jsx';
+
+function ComingSoon({ title }) {
+  return (
+    <div className="min-h-[70vh] flex flex-col items-center justify-center text-center px-4">
+      <div className="text-6xl mb-6">🐠</div>
+      <h1 className="text-2xl font-bold text-slate-700 mb-2">{title}</h1>
+      <p className="text-slate-400 text-sm">現在準備中です。しばらくお待ちください。</p>
+    </div>
+  );
+}
+
+function RequireAuth({ children }) {
+  const { isAuthenticated, isLoadingAuth } = useAuth();
+  if (isLoadingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-slate-400 text-sm">読み込み中...</div>
+      </div>
+    );
+  }
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
+}
+
+function RequireAdmin({ children }) {
+  const { isAdmin, isLoadingAuth } = useAuth();
+  if (isLoadingAuth) return null;
+  return isAdmin ? children : <Navigate to="/" replace />;
+}
 
 export default function App() {
+  const { user, isAuthenticated, isAdmin, logout } = useAuth();
+
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto px-4 flex items-center justify-between h-14">
-          <Link to="/" className="font-bold text-lg tracking-wide">
-            <span className="text-cyan-600">Coral</span>
-            <span className="text-slate-700">Reef</span>
-          </Link>
-          <nav className="flex gap-1">
-            {[
-              { to: '/', label: 'ショップ', end: true },
-              { to: '/aquariums', label: '水槽管理' },
-              { to: '/orders', label: '注文履歴' },
-            ].map(({ to, label, end }) => (
-              <NavLink
-                key={to}
-                to={to}
-                end={end}
-                className={({ isActive }) =>
-                  `px-4 py-2 rounded-lg text-sm font-medium transition ${
-                    isActive ? 'bg-cyan-50 text-cyan-700' : 'text-slate-600 hover:bg-slate-100'
-                  }`
-                }
+      {isAuthenticated && (
+        <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
+          <div className="max-w-6xl mx-auto px-4 flex items-center justify-between h-14">
+            <Link to="/" className="flex items-center gap-2">
+              <img src="/coral-reef-keeper/icon-192.png" alt="" className="w-8 h-8 rounded-lg" />
+              <span className="font-bold text-base tracking-tight">
+                <span className="text-cyan-600">coral</span>
+                <span className="text-slate-800">-reef-</span>
+                <span className="text-cyan-600">keeper</span>
+              </span>
+            </Link>
+            <nav className="flex gap-1">
+              {[
+                { to: '/',       label: '水槽管理', end: true },
+                { to: '/shop',   label: 'ショップ' },
+                { to: '/orders', label: '注文履歴' },
+                ...(isAdmin ? [{ to: '/admin', label: '管理' }] : []),
+              ].map(({ to, label, end }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  end={end}
+                  className={({ isActive }) =>
+                    `px-3 py-2 rounded-lg text-sm font-medium transition ${
+                      isActive ? 'bg-cyan-50 text-cyan-700' : 'text-slate-600 hover:bg-slate-100'
+                    }`
+                  }
+                >
+                  {label}
+                </NavLink>
+              ))}
+            </nav>
+            <div className="flex items-center gap-2 ml-2">
+              {user?.photoURL && (
+                <img src={user.photoURL} alt="" className="w-7 h-7 rounded-full" />
+              )}
+              <span className="text-xs text-slate-500 hidden sm:block max-w-[120px] truncate">{user?.displayName}</span>
+              <button
+                onClick={logout}
+                className="text-xs text-slate-400 hover:text-slate-600 px-2 py-1 rounded-lg hover:bg-slate-100 transition"
               >
-                {label}
-              </NavLink>
-            ))}
-          </nav>
-        </div>
-      </header>
+                ログアウト
+              </button>
+            </div>
+          </div>
+        </header>
+      )}
+
       <main>
         <Routes>
-          <Route path="/" element={<Shop />} />
-          <Route path="/coral/:id" element={<CoralDetail />} />
-          <Route path="/aquariums" element={<Aquariums />} />
-          <Route path="/aquariums/:id" element={<AquariumDetail />} />
-          <Route path="/orders" element={<Orders />} />
+          <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
+
+          <Route path="/" element={<RequireAuth><Aquariums /></RequireAuth>} />
+          <Route path="/aquariums/:id" element={<RequireAuth><AquariumDetail /></RequireAuth>} />
+          <Route path="/shop" element={<RequireAuth><ComingSoon title="ショップ" /></RequireAuth>} />
+          <Route path="/orders" element={<RequireAuth><ComingSoon title="注文履歴" /></RequireAuth>} />
+          <Route path="/admin" element={<RequireAuth><RequireAdmin><Admin /></RequireAdmin></RequireAuth>} />
+
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
     </div>
