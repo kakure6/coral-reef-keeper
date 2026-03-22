@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../AuthContext.jsx';
 
 export default function Login() {
@@ -46,7 +47,7 @@ export default function Login() {
         {error && <p className="text-red-500 text-xs mt-4">{error}</p>}
 
         <p className="text-slate-400 text-xs mt-6">
-          ログインすることで利用規約に同意したものとみなされます。<br />
+          ログインすることで<Link to="/terms" className="text-cyan-600 hover:underline">利用規約</Link>に同意したものとみなされます。<br />
           水槽の水質データはあなたのアカウントに安全に保存されます。
         </p>
       </div>

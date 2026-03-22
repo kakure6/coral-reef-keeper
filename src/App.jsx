@@ -5,6 +5,7 @@ import Aquariums     from './pages/Aquariums.jsx';
 import AquariumDetail from './pages/AquariumDetail.jsx';
 import Login         from './pages/Login.jsx';
 import Admin         from './pages/Admin.jsx';
+import Terms         from './pages/Terms.jsx';
 
 function ComingSoon({ title }) {
   return (
@@ -90,6 +91,7 @@ export default function App() {
       <main>
         <Routes>
           <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
+          <Route path="/terms" element={<Terms />} />
 
           <Route path="/" element={<RequireAuth><Aquariums /></RequireAuth>} />
           <Route path="/aquariums/:id" element={<RequireAuth><AquariumDetail /></RequireAuth>} />
