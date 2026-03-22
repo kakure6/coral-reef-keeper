@@ -61,11 +61,6 @@ export default function Terms() {
             <h2 className="font-semibold text-slate-700 mb-2">第7条（規約の変更）</h2>
             <p>本規約は予告なく変更する場合があります。変更後も本サービスを継続利用した場合、変更後の規約に同意したものとみなします。</p>
           </section>
-
-          <section>
-            <h2 className="font-semibold text-slate-700 mb-2">お問い合わせ</h2>
-            <p>ご不明な点はログイン後のサポート機能よりお問い合わせください。</p>
-          </section>
         </div>
       </div>
     </div>
