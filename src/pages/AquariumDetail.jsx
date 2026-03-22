@@ -104,11 +104,14 @@ function WaterGraph({ logs, aquariumId }) {
         <div className="mt-4">
           <h4 className="text-sm font-medium text-slate-600 mb-2">記録履歴</h4>
           <table className="w-full text-xs text-slate-600">
-            <thead><tr className="border-b">{['日付', ...WATER_PARAMS.map(p => p.label), ''].map(h => <th key={h} className="text-left py-1 pr-2 font-medium">{h}</th>)}</tr></thead>
+            <thead><tr className="border-b">{['日時', ...WATER_PARAMS.map(p => p.label), ''].map(h => <th key={h} className="text-left py-1 pr-2 font-medium">{h}</th>)}</tr></thead>
             <tbody>
               {logs.slice(0, 10).map(l => (
                 <tr key={l.id} className="border-b border-slate-50 hover:bg-slate-50">
-                  <td className="py-1 pr-2">{l.created_date?.slice(5, 10)}</td>
+                  <td className="py-1 pr-2 whitespace-nowrap">
+                    <span>{l.created_date?.slice(5, 10)}</span>
+                    <span className="text-slate-400 ml-1">{l.created_date?.slice(11, 16)}</span>
+                  </td>
                   {WATER_PARAMS.map(p => <td key={p.key} className="py-1 pr-2">{l[p.key] ?? '-'}</td>)}
                   <td className="py-1">
                     <button

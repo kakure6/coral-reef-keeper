@@ -76,7 +76,7 @@ export default function Login() {
             href="https://myaccount.google.com/permissions"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-slate-300 text-xs hover:text-slate-400 transition underline underline-offset-2"
+            className="text-slate-400 text-xs hover:text-slate-600 transition underline underline-offset-2"
           >
             Googleアカウントとの連携を解除する
           </a>
