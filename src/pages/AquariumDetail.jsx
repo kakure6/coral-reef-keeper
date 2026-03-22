@@ -70,7 +70,7 @@ function WaterGraph({ logs, aquariumId }) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['waterLogs', aquariumId] }),
   });
   const data = [...logs].reverse().map(l => ({
-    date: l.created_date?.slice(5, 10),
+    date: l.created_date ? new Date(l.created_date).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo', month: '2-digit', day: '2-digit' }) : '',
     value: l[param],
   })).filter(d => d.value != null);
 
@@ -109,8 +109,13 @@ function WaterGraph({ logs, aquariumId }) {
               {logs.slice(0, 10).map(l => (
                 <tr key={l.id} className="border-b border-slate-50 hover:bg-slate-50">
                   <td className="py-1 pr-2 whitespace-nowrap">
-                    <span>{l.created_date?.slice(5, 10)}</span>
-                    <span className="text-slate-400 ml-1">{l.created_date?.slice(11, 16)}</span>
+                    {(() => {
+                      if (!l.created_date) return '-';
+                      const d = new Date(l.created_date);
+                      const date = d.toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo', month: '2-digit', day: '2-digit' });
+                      const time = d.toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' });
+                      return <><span>{date}</span><span className="text-slate-400 ml-1">{time}</span></>;
+                    })()}
                   </td>
                   {WATER_PARAMS.map(p => <td key={p.key} className="py-1 pr-2">{l[p.key] ?? '-'}</td>)}
                   <td className="py-1">
@@ -401,7 +406,7 @@ export default function AquariumDetail() {
         <div className="bg-white rounded-2xl shadow-sm p-5 mb-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-slate-600">最新の水質状態</h2>
-            <span className="text-xs text-slate-400">({latest.created_date?.slice(0, 10).replace(/-/g, '/')})</span>
+            <span className="text-xs text-slate-400">({latest.created_date ? new Date(latest.created_date).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' }) : ''})</span>
           </div>
           <div className="grid grid-cols-4 gap-3">
             {[
